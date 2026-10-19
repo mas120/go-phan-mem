@@ -7,7 +7,7 @@ tái sử dụng khi nâng cấp sang PyQt/Electron sau này.
 import sys
 
 # Thông tin phiên bản/ứng dụng dùng chung cho cả 2 giao diện + đóng gói (G2).
-__version__ = "1.0.1"
+__version__ = "1.1.0"
 APP_NAME = "App Uninstaller"
 
 #: Repo GitHub (dạng "tài_khoản/repo") dùng cho tính năng kiểm tra cập nhật.

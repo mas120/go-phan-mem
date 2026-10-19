@@ -1,0 +1,7 @@
+# App Uninstaller - không cần dependency bên ngoài.
+# Giao diện default: main.py (tkinter — thư viện chuẩn của Python).
+# Giao diện nâng cao: main_qt.py (PySide6/Qt, dark mode) — cần cài thêm:
+PySide6>=6.6
+
+# Chạy chỉ với tkinter:   python main.py
+# Chạy với Qt:            pip install -r requirements.txt  sau đó  python main_qt.py

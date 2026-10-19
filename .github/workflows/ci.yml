@@ -1,0 +1,46 @@
+name: CI
+
+# Chạy trên MỌI push và pull request để bắt lỗi sớm trước khi merge.
+# (Workflow `release.yml` chỉ chạy khi push tag `v*` để phát hành.)
+on:
+  push:
+  pull_request:
+
+# Chỉ cần đọc mã nguồn -> không cấp quyền ghi.
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Kiểm tra cú pháp & test (Windows)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Lõi `uninstaller_lib/` chỉ dùng thư viện chuẩn Python (Windows-only),
+      # nên KHÔNG cần cài PySide6 để kiểm tra cú pháp / chạy test.
+      - name: Kiểm tra cú pháp toàn bộ file .py (py_compile)
+        env:
+          PYTHONIOENCODING: utf-8
+        shell: pwsh
+        run: |
+          $exclude = '\\(build|dist|backups|__pycache__|\.venv|venv)\\'
+          $files = Get-ChildItem -Path . -Recurse -Filter *.py |
+            Where-Object { $_.FullName -notmatch $exclude }
+          Write-Host "py_compile cho $($files.Count) file .py"
+          foreach ($f in $files) {
+            python -m py_compile $f.FullName
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
+      - name: Chạy test_leftover.py
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python test_leftover.py

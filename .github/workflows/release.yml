@@ -1,0 +1,55 @@
+name: Release
+
+# Tự động build + phát hành khi push tag dạng v1.1.0.
+on:
+  push:
+    tags:
+      - "v*"
+
+# Cần quyền ghi để tạo GitHub Release.
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-build.txt
+
+      - name: Run tests
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python test_leftover.py
+
+      - name: Build (Tk)
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python build.py --clean-temp
+
+      - name: Build (Qt)
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python build.py --ui qt --clean-temp
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          files: |
+            dist/AppUninstaller.exe
+            dist/AppUninstallerQt.exe
+            dist/app_core.zip
+          generate_release_notes: true

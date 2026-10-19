@@ -1,0 +1,3 @@
+# Chỉ dùng cho việc ĐÓNG GÓI (build), KHÔNG phải dependency runtime của app.
+# Cài:  pip install -r requirements-build.txt
+PyInstaller>=6.0

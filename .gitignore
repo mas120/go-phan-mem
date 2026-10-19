@@ -1,0 +1,25 @@
+# .gitignore — App Uninstaller
+# KHÔNG đẩy dữ liệu cá nhân / sản phẩm build lên GitHub; chỉ đẩy mã nguồn sạch.
+
+# 1) Dữ liệu cá nhân: backup registry (.reg) + nhật ký thao tác (history.jsonl)
+backups/
+*.reg
+*.jsonl
+
+# 2) Sản phẩm đóng gói PyInstaller (thư mục trung gian + file kết quả + spec)
+dist/
+build/
+*.spec
+version_info.txt
+
+# 3) Cache Python & môi trường ảo
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+
+# 4) Cấu hình IDE / trình soạn thảo (không cần thiết cho repo)
+.idea/
+.vscode/

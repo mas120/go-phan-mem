@@ -35,6 +35,9 @@ from uninstaller_lib import (
 from PySide6.QtCore import (
     QAbstractTableModel,
     QModelIndex,
+    QPoint,
+    QRect,
+    QSize,
     QSortFilterProxyModel,
     QThread,
     Qt,
@@ -55,6 +58,7 @@ from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
+    QLayout,
     QLineEdit,
     QMainWindow,
     QMenu,
@@ -520,6 +524,82 @@ class LeftoverDeleteWorker(QObject):
         self.done.emit(targets, results)
 
 
+# ==== FlowLayout (thanh công cụ tự xuống dòng) ====
+
+class FlowLayout(QLayout):
+    """Layout xếp phần tử theo hàng và TỰ XUỐNG DÒNG khi hết chỗ.
+
+    Dùng cho thanh công cụ để cửa sổ có thể thu nhỏ trên màn hình hẹp/scale
+    cao (thay vì bị ép rộng tối thiểu bằng cả hàng nút).
+    """
+
+    def __init__(self, parent=None, margin=0, h_spacing=6, v_spacing=6):
+        super().__init__(parent)
+        self._items = []
+        self._h_spacing = h_spacing
+        self._v_spacing = v_spacing
+        self.setContentsMargins(margin, margin, margin, margin)
+
+    def addItem(self, item):  # noqa: N802 - API Qt
+        self._items.append(item)
+
+    def count(self):
+        return len(self._items)
+
+    def itemAt(self, index):  # noqa: N802 - API Qt
+        if 0 <= index < len(self._items):
+            return self._items[index]
+        return None
+
+    def takeAt(self, index):  # noqa: N802 - API Qt
+        if 0 <= index < len(self._items):
+            return self._items.pop(index)
+        return None
+
+    def expandingDirections(self):  # noqa: N802 - API Qt
+        return Qt.Orientations(Qt.Orientation(0))
+
+    def hasHeightForWidth(self):  # noqa: N802 - API Qt
+        return True
+
+    def heightForWidth(self, width):  # noqa: N802 - API Qt
+        return self._do_layout(QRect(0, 0, width, 0), True)
+
+    def setGeometry(self, rect):  # noqa: N802 - API Qt
+        super().setGeometry(rect)
+        self._do_layout(rect, False)
+
+    def sizeHint(self):  # noqa: N802 - API Qt
+        return self.minimumSize()
+
+    def minimumSize(self):  # noqa: N802 - API Qt
+        size = QSize()
+        for item in self._items:
+            size = size.expandedTo(item.minimumSize())
+        m = self.contentsMargins()
+        size += QSize(m.left() + m.right(), m.top() + m.bottom())
+        return size
+
+    def _do_layout(self, rect, test_only):
+        m = self.contentsMargins()
+        effective = rect.adjusted(m.left(), m.top(), -m.right(), -m.bottom())
+        x = effective.x()
+        y = effective.y()
+        line_height = 0
+        for item in self._items:
+            next_x = x + item.sizeHint().width() + self._h_spacing
+            if next_x - self._h_spacing > effective.right() and line_height > 0:
+                x = effective.x()
+                y = y + line_height + self._v_spacing
+                next_x = x + item.sizeHint().width() + self._h_spacing
+                line_height = 0
+            if not test_only:
+                item.setGeometry(QRect(QPoint(x, y), item.sizeHint()))
+            x = next_x
+            line_height = max(line_height, item.sizeHint().height())
+        return y + line_height - rect.y() + m.bottom()
+
+
 # ==== Cửa sổ chính ====
 
 class MainWindow(QMainWindow):
@@ -533,7 +613,8 @@ class MainWindow(QMainWindow):
         self._is_admin = uninstall.is_admin()
 
         self.setWindowTitle(f"{APP_NAME} (Qt) {__version__}")
-        self.resize(1200, 720)
+        self.setMinimumSize(640, 480)
+        self._fit_to_screen()
 
         self._build_actions()
         self._build_ui()
@@ -543,6 +624,23 @@ class MainWindow(QMainWindow):
         self._update_actions()
 
         QTimer.singleShot(0, self.refresh)
+
+    def _fit_to_screen(self):
+        """Đặt kích thước cửa sổ vừa khít màn hình khả dụng rồi căn giữa.
+
+        Tránh cửa sổ to hơn màn hình (nhất là khi Windows scale 125–150%),
+        khiến đáy cửa sổ bị chui xuống dưới taskbar.
+        """
+        screen = self.screen() or QApplication.primaryScreen()
+        if screen is None:
+            self.resize(1200, 720)
+            return
+        avail = screen.availableGeometry()
+        width = min(1200, max(640, avail.width() - 60))
+        height = min(720, max(480, avail.height() - 60))
+        self.resize(width, height)
+        self.move(avail.x() + (avail.width() - width) // 2,
+                  avail.y() + (avail.height() - height) // 2)
 
     # ---- Actions (dùng chung cho toolbar + context menu) ----
 
@@ -611,11 +709,12 @@ class MainWindow(QMainWindow):
         root.setContentsMargins(10, 10, 10, 10)
         root.setSpacing(8)
 
-        # --- Thanh công cụ ---
+        # --- Thanh công cụ (tự xuống dòng khi cửa sổ hẹp) ---
         toolbar = QFrame()
-        bar = QHBoxLayout(toolbar)
-        bar.setContentsMargins(0, 0, 0, 0)
-        bar.setSpacing(6)
+        bar = FlowLayout(toolbar, margin=0, h_spacing=6, v_spacing=6)
+        policy = toolbar.sizePolicy()
+        policy.setHeightForWidth(True)
+        toolbar.setSizePolicy(policy)
 
         self.btn_refresh = self._button("Làm mới", "Quét lại danh sách ứng dụng", self.refresh)
         self.btn_uninstall = self._button("Gỡ cài đặt", "Gỡ ứng dụng đang chọn", self.uninstall_selected, danger=True)
@@ -643,7 +742,6 @@ class MainWindow(QMainWindow):
             self.btn_admin = self._button("Nâng quyền Admin", "Chạy lại với quyền Administrator (UAC)", self.raise_admin)
             bar.addWidget(self.btn_admin)
 
-        bar.addStretch(1)
         bar.addWidget(QLabel("Tìm kiếm:"))
         self.search_box = QLineEdit()
         self.search_box.setPlaceholderText("Theo Tên / Nhà phát hành…")
@@ -689,13 +787,14 @@ class MainWindow(QMainWindow):
         self.log_view = QPlainTextEdit()
         self.log_view.setReadOnly(True)
         self.log_view.setMaximumBlockCount(600)
-        self.log_view.setFixedHeight(150)
+        self.log_view.setMinimumHeight(90)
 
         splitter = QSplitter(Qt.Orientation.Vertical)
         splitter.addWidget(self.table_view)
         splitter.addWidget(self.log_view)
         splitter.setStretchFactor(0, 4)
         splitter.setStretchFactor(1, 1)
+        splitter.setSizes([520, 150])
 
         root.addWidget(self.count_label)
         root.addWidget(splitter, 1)

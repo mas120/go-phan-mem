@@ -360,10 +360,19 @@ def restart_application() -> None:
 
     - Đóng gói (``sys.frozen``): chạy lại ``sys.executable`` (file ``.exe``).
     - Chạy script: chạy lại ``[sys.executable] + sys.argv``.
+
+    QUAN TRỌNG (PyInstaller onefile >= 6.9): tiến trình mới phải chạy như một
+    thực thể ĐỘC LẬP, KHÔNG tái dùng thư mục giải nén tạm ``_MEI...`` của tiến
+    trình cũ. Vì tiến trình cũ thoát sẽ khiến vỏ bootloader XOÁ thư mục tạm đó,
+    làm tiến trình mới mất file (lỗi điển hình: ``base_library.zip`` không tồn
+    tại khi import muộn như ``ssl``/``urllib`` -> "Không kết nối được GitHub").
+    Đặt ``PYINSTALLER_RESET_ENVIRONMENT=1`` buộc bản mới tự giải nén lại.
     """
     if getattr(sys, "frozen", False):
         args = [sys.executable]
     else:
         args = [sys.executable] + list(sys.argv)
-    subprocess.Popen(args)
+    env = os.environ.copy()
+    env["PYINSTALLER_RESET_ENVIRONMENT"] = "1"  # PyInstaller onefile: tách _MEI
+    subprocess.Popen(args, env=env)
     sys.exit(0)

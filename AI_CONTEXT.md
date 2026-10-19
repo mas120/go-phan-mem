@@ -197,7 +197,10 @@
   `app_core.new.zip` tại `get_app_dir()` (ghi `.part` rồi `os.replace`), validate; hỏng -> xoá file tạm.
 - `apply_pending_update(app_dir=None) -> (ok, path_or_error)`: `app_core.new.zip` hợp lệ -> sao lưu
   `app_core.zip` cũ sang `app_core.bak.zip` rồi hoán đổi gói mới vào. `rollback_core_update(app_dir=None) -> bool`:
-  khôi phục `app_core.bak.zip` đè `app_core.zip`. `restart_application()`: chạy lại tiến trình (`sys.executable`).
+  khôi phục `app_core.bak.zip` đè `app_core.zip`. `restart_application()`: chạy lại tiến trình
+  (`sys.executable`) với `PYINSTALLER_RESET_ENVIRONMENT=1` trong env con (PyInstaller onefile >= 6.9):
+  bắt tiến trình mới tự giải nén `_MEI...` MỚI thay vì tái dùng thư mục tạm sẽ bị vỏ cũ xoá khi thoát
+  (nếu không, tiến trình mới mất `base_library.zip` -> lỗi import muộn như `ssl`/`urllib`: "Không kết nối được GitHub").
 - `download_update(download_url, dest_dir=None) -> (ok, path_or_error)`: tải `.exe` đầy đủ về
   `dest_dir` (mặc định `~/Downloads`, fallback thư mục tạm), ghi file `.part` rồi `os.replace`. KHÔNG raise.
 - `launcher.py` (vỏ `.exe`): xác định `app_dir` -> `apply_pending_update` -> nếu có `app_core.zip` thì chèn

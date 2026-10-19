@@ -123,6 +123,10 @@
   - Nút/menu "Tạo Restore Point" gọi `backup.create_restore_point()` trên worker thread (Tk: `threading.Thread` + `self.after`; Qt: `RestorePointWorker` QThread + Signal).
   - Menu Trợ giúp → "Kiểm tra cập nhật…" gọi `updater.check_for_updates()` trên worker thread (Tk: `threading.Thread` + `self.after`; Qt: `UpdateCheckWorker` QThread + Signal). Có bản mới → hiện `current_version`/`latest_version` + `notes`.
   - Nếu `download_url` kết thúc `.zip` (có gói lõi): hỏi tự động cập nhật nhẹ → tải qua `updater.download_core_update` + `updater.apply_pending_update` + `updater.restart_application` trên worker thread (Tk: `_core_update_worker`; Qt: `CoreUpdateWorker`). Ngược lại: mở trang Release (`os.startfile(release_url)`, Tk `_open_release_page`) hoặc tải `.exe` đầy đủ (`updater.download_update`, Qt `UpdateDownloadWorker`). Bản mới nhất/lỗi mạng đều báo rõ.
+- Giao diện Qt (`main_qt.py`) — Redesign UI/UX (giữ nguyên logic worker/QThread):
+  - Thanh công cụ chia 2 nhóm: **Thao tác chính** (icon `QStyle` + accent đỏ cho "Gỡ cài đặt", xanh cho "Quét Leftover") và nhóm **"Hệ thống & Backup"** gom vào `QToolButton` dropdown (`_build_system_menu`: mở thư mục, backups, restore point, nâng quyền Admin).
+  - QSS dark mode: bo góc `border-radius: 6px`, hiệu ứng `hover`/`pressed` cho button/toolbutton, `alternatingRowColors(True)` + padding ô bảng; ô dữ liệu trống hiển thị `—` xám mờ (`PLACEHOLDER`/`PLACEHOLDER_COLOR` qua `ForegroundRole` của `AppsTableModel`).
+  - Dock "Chi tiết ứng dụng" dùng `QStackedWidget`: trang 0 hiện hướng dẫn khi chưa chọn app; trang 1 hiện tiêu đề đậm + form chi tiết (`_update_detail`).
 
 ## 5. Context Loading Rules (cho AI phiên sau)
 - Bắt đầu phiên: đọc đúng file `AI_CONTEXT.md` này — đủ đáp ứng ~95% yêu cầu.

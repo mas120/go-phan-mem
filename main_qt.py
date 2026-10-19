@@ -46,7 +46,7 @@ from PySide6.QtCore import (
     QTimer,
     qVersion,
 )
-from PySide6.QtGui import QAction, QKeySequence
+from PySide6.QtGui import QAction, QColor, QKeySequence
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QApplication,
@@ -66,9 +66,11 @@ from PySide6.QtWidgets import (
     QPlainTextEdit,
     QProgressBar,
     QPushButton,
-    QScrollArea,
     QSplitter,
+    QStackedWidget,
+    QStyle,
     QTableView,
+    QToolButton,
     QTreeWidget,
     QTreeWidgetItem,
     QVBoxLayout,
@@ -112,76 +114,130 @@ SOURCE_FILTERS = [
     ("Winget", "winget"),
 ]
 
+#: Ký tự thay thế cho ô/trường dữ liệu trống (hiển thị xám mờ thay vì để trắng).
+PLACEHOLDER = "—"
+
+#: Màu xám mờ dùng cho ô dữ liệu trống trên bảng.
+PLACEHOLDER_COLOR = "#6f7278"
+
 # ==== Stylesheet dark mode ====
 STYLESHEET = """
 QMainWindow, QWidget {
-    background-color: #1e1e22; color: #e6e6e6;
+    background-color: #1b1c20; color: #e6e6e6;
     font-family: 'Segoe UI', 'Inter', 'Helvetica Neue', sans-serif; font-size: 13px;
 }
-QLineEdit, QComboBox {
-    background-color: #2a2b30; color: #e6e6e6; border: 1px solid #3c3d42;
-    border-radius: 6px; padding: 6px 8px; selection-background-color: #4f8ef7;
+QLabel { color: #e6e6e6; }
+QLabel#count { color: #a7abb3; padding: 2px 2px; }
+QLabel#hint { color: #8a8e96; font-size: 13px; }
+QLabel#detailName { font-size: 16px; font-weight: 700; color: #ffffff; }
+QLabel#detailSub { color: #8a8e96; font-size: 12px; }
+QLabel#detailLabel { color: #9aa0a8; font-weight: 600; }
+
+/* Thanh công cụ dạng thẻ, 2 nhóm rõ ràng */
+QFrame#toolbar {
+    background-color: #232428; border: 1px solid #303138; border-radius: 8px;
+    padding: 6px;
 }
-QLineEdit:focus, QComboBox:focus { border: 1px solid #4f8ef7; }
+QWidget#toolbarInner { background-color: transparent; }
+QFrame#toolbarSep { background-color: #34353c; border: none; }
+
+QLineEdit, QComboBox {
+    background-color: #26272c; color: #e6e6e6; border: 1px solid #3a3b42;
+    border-radius: 6px; padding: 6px 10px; selection-background-color: #2d6cdf;
+}
+QLineEdit:hover, QComboBox:hover { border: 1px solid #4a4b54; }
+QLineEdit:focus, QComboBox:focus { border: 1px solid #4f8ef7; background-color: #2a2b31; }
 QComboBox::drop-down { border: none; width: 22px; }
 QComboBox QAbstractItemView {
-    background-color: #2a2b30; color: #e6e6e6; selection-background-color: #4f8ef7;
-    border: 1px solid #3c3d42; outline: none;
+    background-color: #26272c; color: #e6e6e6; selection-background-color: #2d6cdf;
+    border: 1px solid #3a3b42; border-radius: 6px; outline: none; padding: 4px;
 }
+
 QPushButton {
-    background-color: #2a2b30; color: #e6e6e6; border: 1px solid #3c3d42;
-    border-radius: 6px; padding: 6px 12px; font-weight: 600;
+    background-color: #2a2b31; color: #e6e6e6; border: 1px solid #3a3b42;
+    border-radius: 6px; padding: 7px 14px; font-weight: 600;
 }
-QPushButton:hover { background-color: #343640; border-color: #4f8ef7; }
-QPushButton:pressed { background-color: #3d3f47; }
-QPushButton:disabled { color: #6a6c72; background-color: #242529; border-color: #2f3034; }
+QPushButton:hover { background-color: #34363e; border-color: #4f8ef7; }
+QPushButton:pressed { background-color: #222329; border-color: #3a7ae0; }
+QPushButton:disabled { color: #6a6c72; background-color: #232429; border-color: #2c2d33; }
 QPushButton#primary { background-color: #2d6cdf; border-color: #2d6cdf; color: #ffffff; }
 QPushButton#primary:hover { background-color: #3a7ae0; border-color: #3a7ae0; }
-QPushButton#danger { background-color: #cb2431; border-color: #cb2431; color: #ffffff; }
-QPushButton#danger:hover { background-color: #da3b47; border-color: #da3b47; }
-QTableView {
-    background-color: #1f2024; alternate-background-color: #24252a; color: #e6e6e6;
-    border: 1px solid #3c3d42; gridline-color: #2c2d31; border-radius: 8px;
+QPushButton#primary:pressed { background-color: #245bc0; border-color: #245bc0; }
+QPushButton#danger { background-color: #c62b38; border-color: #c62b38; color: #ffffff; }
+QPushButton#danger:hover { background-color: #d93a47; border-color: #d93a47; }
+QPushButton#danger:pressed { background-color: #a8232f; border-color: #a8232f; }
+
+QToolButton {
+    background-color: #2a2b31; color: #e6e6e6; border: 1px solid #3a3b42;
+    border-radius: 6px; padding: 7px 12px; font-weight: 600;
+}
+QToolButton:hover { background-color: #34363e; border-color: #4f8ef7; }
+QToolButton:pressed { background-color: #222329; border-color: #3a7ae0; }
+QToolButton:disabled { color: #6a6c72; background-color: #232429; border-color: #2c2d33; }
+QToolButton::menu-indicator { image: none; width: 0px; }
+
+QTableView, QTreeWidget {
+    background-color: #1f2024; alternate-background-color: #242530; color: #e6e6e6;
+    border: 1px solid #34353c; border-radius: 8px; gridline-color: #2c2d33;
     selection-background-color: #2d4d8c; selection-color: #ffffff;
 }
-QTableView::item { padding: 4px; }
+QTableView::item { padding: 6px 8px; }
+QTableView::item:hover { background-color: #2a2c34; }
+QTreeWidget::item { padding: 5px 6px; }
+QTreeWidget::item:selected { background-color: #2d4d8c; color: #ffffff; }
+QTreeWidget::item:hover { background-color: #2a2c34; }
+
 QHeaderView::section {
-    background-color: #26272c; color: #b9bcc2; padding: 6px; border: none;
-    border-right: 1px solid #303136; border-bottom: 1px solid #3c3d42; font-weight: 600;
+    background-color: #26272c; color: #b9bcc2; padding: 8px 6px; border: none;
+    border-right: 1px solid #303136; border-bottom: 1px solid #3a3b42; font-weight: 600;
 }
 QHeaderView::section:hover { background-color: #2d2f35; }
-QTreeWidget {
-    background-color: #1f2024; alternate-background-color: #24252a; color: #e6e6e6;
-    border: 1px solid #3c3d42; border-radius: 8px;
-}
-QTreeWidget::item { padding: 4px; }
-QTreeWidget::item:selected { background-color: #2d4d8c; color: #ffffff; }
-QTreeWidget::item:hover { background-color: #2a2c33; }
-QStatusBar { background-color: #26272c; color: #b9bcc2; border-top: 1px solid #303136; }
+
+QStatusBar { background-color: #232428; color: #b9bcc2; border-top: 1px solid #303136; }
+QStatusBar::item { border: none; }
+
 QProgressBar {
-    background-color: #2a2b30; border: 1px solid #3c3d42; border-radius: 6px;
+    background-color: #2a2b31; border: 1px solid #3a3b42; border-radius: 6px;
     text-align: center; color: #e6e6e6;
 }
 QProgressBar::chunk { background-color: #4f8ef7; border-radius: 5px; }
+
 QScrollBar:vertical { background: transparent; width: 12px; margin: 2px; }
-QScrollBar::handle:vertical { background: #40424a; border-radius: 6px; min-height: 30px; }
+QScrollBar::handle:vertical { background: #3d3f47; border-radius: 6px; min-height: 30px; }
 QScrollBar::handle:vertical:hover { background: #4f8ef7; }
 QScrollBar::add-line, QScrollBar::sub-line { height: 0px; }
 QScrollBar:horizontal { background: transparent; height: 12px; margin: 2px; }
-QScrollBar::handle:horizontal { background: #40424a; border-radius: 6px; min-width: 30px; }
+QScrollBar::handle:horizontal { background: #3d3f47; border-radius: 6px; min-width: 30px; }
 QScrollBar::handle:horizontal:hover { background: #4f8ef7; }
-QToolTip { background-color: #2a2b30; color: #e6e6e6; border: 1px solid #3c3d42; padding: 4px 6px; }
-QPlainTextEdit {
-    background-color: #191a1e; color: #c8cbd0; border: 1px solid #2f3034;
-    border-radius: 6px; font-family: 'Cascadia Code', 'Consolas', 'Menlo', monospace;
+
+QToolTip {
+    background-color: #2a2b31; color: #e6e6e6; border: 1px solid #3a3b42;
+    padding: 5px 8px; border-radius: 4px;
 }
-QDialog { background-color: #1e1e22; }
-QMenu { background-color: #26272c; color: #e6e6e6; border: 1px solid #3c3d42; }
-QMenu::item { padding: 6px 24px; }
-QMenu::item:selected { background-color: #4f8ef7; color: #ffffff; }
-QMenu::separator { height: 1px; background: #303136; margin: 4px 8px; }
+QPlainTextEdit {
+    background-color: #17181c; color: #c8cbd0; border: 1px solid #2f3034;
+    border-radius: 6px; padding: 6px;
+    font-family: 'Cascadia Code', 'Consolas', 'Menlo', monospace;
+}
+QDialog { background-color: #1b1c20; }
+
+QDockWidget { color: #cfd2d8; }
+QDockWidget::title {
+    background-color: #232428; padding: 8px 10px; border-bottom: 1px solid #303136;
+    font-weight: 700;
+}
+
+QMenu {
+    background-color: #26272c; color: #e6e6e6; border: 1px solid #3a3b42;
+    border-radius: 8px; padding: 6px;
+}
+QMenu::item { padding: 7px 26px 7px 30px; border-radius: 5px; }
+QMenu::item:selected { background-color: #2d6cdf; color: #ffffff; }
+QMenu::item:disabled { color: #6a6c72; }
+QMenu::separator { height: 1px; background: #34353c; margin: 5px 8px; }
+
+QScrollArea { background: transparent; border: none; }
 QCheckBox { spacing: 6px; }
-QLabel { color: #e6e6e6; }
 """
 
 
@@ -219,24 +275,30 @@ class AppsTableModel(QAbstractTableModel):
             return self._sort_key(app, col)
         if role == Qt.ItemDataRole.ToolTipRole:
             return self._tooltip(app)
+        if role == Qt.ItemDataRole.ForegroundRole:
+            # Ô dữ liệu trống -> chữ '—' xám mờ thay vì để trắng trống trải.
+            if self._display(app, col) == PLACEHOLDER:
+                return QColor(PLACEHOLDER_COLOR)
+            return None
         if role == Qt.ItemDataRole.TextAlignmentRole and col == 3:
             return Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
         return None
 
     def _display(self, app, col) -> str:
+        value = ""
         if col == 0:
-            return app.name or ""
-        if col == 1:
-            return app.version or ""
-        if col == 2:
-            return app.publisher or ""
-        if col == 3:
-            return app.size_text
-        if col == 4:
-            return app.date_text
-        if col == 5:
-            return SOURCE_LABELS.get(app.source, app.source or "")
-        return ""
+            value = app.name or ""
+        elif col == 1:
+            value = app.version or ""
+        elif col == 2:
+            value = app.publisher or ""
+        elif col == 3:
+            value = app.size_text or ""
+        elif col == 4:
+            value = app.date_text or ""
+        elif col == 5:
+            value = SOURCE_LABELS.get(app.source, app.source or "")
+        return value if value.strip() else PLACEHOLDER
 
     def _sort_key(self, app, col):
         if col == 0:
@@ -645,22 +707,36 @@ class MainWindow(QMainWindow):
     # ---- Actions (dùng chung cho toolbar + context menu) ----
 
     def _build_actions(self):
-        self.action_refresh = QAction("Làm mới", self)
+        icon = self._icon
+        self.action_refresh = QAction(
+            icon(QStyle.StandardPixmap.SP_BrowserReload), "Làm mới", self)
         self.action_refresh.setShortcut(QKeySequence.StandardKey.Refresh)
-        self.action_search = QAction("Tìm kiếm", self)
+        self.action_search = QAction(
+            icon(QStyle.StandardPixmap.SP_FileDialogStart), "Tìm kiếm", self)
         self.action_search.setShortcut(QKeySequence.StandardKey.Find)      # Ctrl+F (E2)
-        self.action_uninstall = QAction("Gỡ cài đặt", self)
+        self.action_uninstall = QAction(
+            icon(QStyle.StandardPixmap.SP_TrashIcon), "Gỡ cài đặt", self)
         self.action_uninstall.setShortcut(QKeySequence("Del"))
-        self.action_quiet = QAction("Gỡ im lặng", self)
-        self.action_batch = QAction("Gỡ hàng loạt", self)
-        self.action_leftover = QAction("Quét Leftover", self)
-        self.action_open_folder = QAction("Mở thư mục cài đặt", self)
-        self.action_admin = QAction("Nâng quyền Admin", self)
-        self.action_backups = QAction("Mở thư mục Backups", self)
-        self.action_restore_backup = QAction("Khôi phục Backup", self)
-        self.action_clear_backups = QAction("Dọn lịch sử Backup", self)
-        self.action_restore_point = QAction("Tạo Restore Point", self)
-        self.action_update = QAction("Kiểm tra cập nhật…", self)
+        self.action_quiet = QAction(
+            icon(QStyle.StandardPixmap.SP_MediaStop), "Gỡ im lặng", self)
+        self.action_batch = QAction(
+            icon(QStyle.StandardPixmap.SP_FileDialogDetailedView), "Gỡ hàng loạt", self)
+        self.action_leftover = QAction(
+            icon(QStyle.StandardPixmap.SP_FileDialogContentsView), "Quét Leftover", self)
+        self.action_open_folder = QAction(
+            icon(QStyle.StandardPixmap.SP_DirOpenIcon), "Mở thư mục cài đặt", self)
+        self.action_admin = QAction(
+            icon(QStyle.StandardPixmap.SP_ComputerIcon), "Nâng quyền Admin", self)
+        self.action_backups = QAction(
+            icon(QStyle.StandardPixmap.SP_DriveFDIcon), "Mở thư mục Backups", self)
+        self.action_restore_backup = QAction(
+            icon(QStyle.StandardPixmap.SP_DialogApplyButton), "Khôi phục Backup", self)
+        self.action_clear_backups = QAction(
+            icon(QStyle.StandardPixmap.SP_DialogDiscardButton), "Dọn lịch sử Backup", self)
+        self.action_restore_point = QAction(
+            icon(QStyle.StandardPixmap.SP_MessageBoxWarning), "Tạo Restore Point", self)
+        self.action_update = QAction(
+            icon(QStyle.StandardPixmap.SP_ArrowUp), "Kiểm tra cập nhật…", self)
 
         self.action_refresh.triggered.connect(self.refresh)
         self.action_search.triggered.connect(self._focus_search)
@@ -687,6 +763,25 @@ class MainWindow(QMainWindow):
         self.search_box.setFocus()
         self.search_box.selectAll()
 
+    def _build_system_menu(self):
+        """Menu dropdown nhóm 'Hệ thống & Backup'.
+
+        Gom các công cụ ít dùng hơn vào 1 nút để thanh công cụ gọn gàng:
+        mở thư mục, backups, restore point và nâng quyền Admin.
+        """
+        menu = QMenu(self)
+        menu.addAction(self.action_open_folder)
+        menu.addSeparator()
+        menu.addAction(self.action_backups)
+        menu.addAction(self.action_restore_backup)
+        menu.addAction(self.action_clear_backups)
+        menu.addSeparator()
+        menu.addAction(self.action_restore_point)
+        if not self._is_admin:
+            menu.addSeparator()
+            menu.addAction(self.action_admin)
+        return menu
+
     def _build_menubar(self):
         """Thanh menu: Trợ giúp -> Giới thiệu (G2) + Kiểm tra cập nhật (Nhóm V)."""
         help_menu = self.menuBar().addMenu("Trợ giúp")
@@ -709,51 +804,72 @@ class MainWindow(QMainWindow):
         root.setContentsMargins(10, 10, 10, 10)
         root.setSpacing(8)
 
-        # --- Thanh công cụ (tự xuống dòng khi cửa sổ hẹp) ---
+        # --- Thanh công cụ: 2 nhóm rõ ràng ---
+        #   Nhóm 1: Thao tác chính (nổi bật, có icon) — tự xuống dòng khi hẹp.
+        #   Nhóm 2: Tìm kiếm / Nguồn / menu "Hệ thống & Backup" (gom bên phải).
         toolbar = QFrame()
-        bar = FlowLayout(toolbar, margin=0, h_spacing=6, v_spacing=6)
-        policy = toolbar.sizePolicy()
+        toolbar.setObjectName("toolbar")
+        toolbar_layout = QHBoxLayout(toolbar)
+        toolbar_layout.setContentsMargins(0, 0, 0, 0)
+        toolbar_layout.setSpacing(10)
+
+        primary_box = QWidget()
+        primary_box.setObjectName("toolbarInner")
+        primary_layout = FlowLayout(primary_box, margin=0, h_spacing=6, v_spacing=6)
+        policy = primary_box.sizePolicy()
         policy.setHeightForWidth(True)
-        toolbar.setSizePolicy(policy)
+        primary_box.setSizePolicy(policy)
 
-        self.btn_refresh = self._button("Làm mới", "Quét lại danh sách ứng dụng", self.refresh)
-        self.btn_uninstall = self._button("Gỡ cài đặt", "Gỡ ứng dụng đang chọn", self.uninstall_selected, danger=True)
-        self.btn_quiet = self._button("Gỡ im lặng", "Gỡ bằng lệnh im lặng (build_quiet_command)", self.uninstall_quiet_selected)
-        self.btn_batch = self._button("Gỡ hàng loạt", "Gỡ lần lượt các ứng dụng đã chọn", self.uninstall_batch)
-        self.btn_leftover = self._button("Quét Leftover", "Quét rác cho ứng dụng đang chọn", self.scan_leftover, primary=True)
-        self.btn_open_folder = self._button("Mở thư mục", "Mở thư mục cài đặt", self.open_install_folder)
-        self.btn_backups = self._button("Mở Backups", "Mở thư mục backups/ (khôi phục .reg)", self.open_backups_folder)
-        self.btn_restore_backup = self._button("Khôi phục Backup", "Chọn file .reg và khôi phục về registry", self.open_backup_manager, primary=True)
-        self.btn_clear_backups = self._button("Dọn Backups", "Xoá toàn bộ .reg + history.jsonl", self.clear_backup_history)
-        self.btn_restore_point = self._button("Tạo Restore Point", "Tạo Điểm Khôi Phục Hệ Thống (System Restore Point)", self.create_restore_point)
+        self.btn_refresh = self._button(
+            "Làm mới", "Quét lại danh sách ứng dụng (F5)", self.refresh,
+            icon=QStyle.StandardPixmap.SP_BrowserReload)
+        self.btn_uninstall = self._button(
+            "Gỡ cài đặt", "Gỡ ứng dụng đang chọn (Del)", self.uninstall_selected,
+            danger=True, icon=QStyle.StandardPixmap.SP_TrashIcon)
+        self.btn_quiet = self._button(
+            "Gỡ im lặng", "Gỡ bằng lệnh im lặng (build_quiet_command)",
+            self.uninstall_quiet_selected,
+            icon=QStyle.StandardPixmap.SP_MediaStop)
+        self.btn_batch = self._button(
+            "Gỡ hàng loạt", "Gỡ lần lượt các ứng dụng đã chọn", self.uninstall_batch,
+            icon=QStyle.StandardPixmap.SP_FileDialogDetailedView)
+        self.btn_leftover = self._button(
+            "Quét Leftover", "Quét rác cho ứng dụng đang chọn", self.scan_leftover,
+            primary=True, icon=QStyle.StandardPixmap.SP_FileDialogContentsView)
 
-        bar.addWidget(self.btn_refresh)
-        bar.addWidget(self.btn_uninstall)
-        bar.addWidget(self.btn_quiet)
-        bar.addWidget(self.btn_batch)
-        bar.addWidget(self.btn_leftover)
-        bar.addWidget(self.btn_open_folder)
-        bar.addWidget(self.btn_backups)
-        bar.addWidget(self.btn_restore_backup)
-        bar.addWidget(self.btn_clear_backups)
-        bar.addWidget(self.btn_restore_point)
+        for btn in (self.btn_refresh, self.btn_uninstall, self.btn_quiet,
+                    self.btn_batch, self.btn_leftover):
+            primary_layout.addWidget(btn)
+        toolbar_layout.addWidget(primary_box, 1)
 
-        if not self._is_admin:
-            self.btn_admin = self._button("Nâng quyền Admin", "Chạy lại với quyền Administrator (UAC)", self.raise_admin)
-            bar.addWidget(self.btn_admin)
+        self.toolbar_sep = QFrame()
+        self.toolbar_sep.setObjectName("toolbarSep")
+        self.toolbar_sep.setFrameShape(QFrame.Shape.VLine)
+        self.toolbar_sep.setFixedWidth(1)
+        toolbar_layout.addWidget(self.toolbar_sep)
 
-        bar.addWidget(QLabel("Tìm kiếm:"))
         self.search_box = QLineEdit()
-        self.search_box.setPlaceholderText("Theo Tên / Nhà phát hành…")
+        self.search_box.setPlaceholderText("Tìm theo Tên / Nhà phát hành…")
         self.search_box.setClearButtonEnabled(True)
-        self.search_box.setMinimumWidth(220)
-        bar.addWidget(self.search_box)
+        self.search_box.setMinimumWidth(200)
+        self.search_box.setMaximumWidth(280)
+        toolbar_layout.addWidget(self.search_box)
 
-        bar.addWidget(QLabel("Nguồn:"))
         self.source_combo = QComboBox()
         for label, value in SOURCE_FILTERS:
             self.source_combo.addItem(label, value)
-        bar.addWidget(self.source_combo)
+        self.source_combo.setMinimumWidth(110)
+        toolbar_layout.addWidget(self.source_combo)
+
+        self.btn_system = QToolButton()
+        self.btn_system.setText("Hệ thống & Backup")
+        self.btn_system.setIcon(self._icon(QStyle.StandardPixmap.SP_FileDialogListView))
+        self.btn_system.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        self.btn_system.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        self.btn_system.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_system.setToolTip("Công cụ hệ thống & sao lưu (mở thư mục, backup, admin…)")
+        self.btn_system.setMenu(self._build_system_menu())
+        toolbar_layout.addWidget(self.btn_system)
 
         root.addWidget(toolbar)
 
@@ -811,22 +927,72 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage("Sẵn sàng.")
 
     def _build_detail_dock(self):
-        """Dock bên phải hiển thị chi tiết app đang chọn (E1)."""
+        """Dock bên phải hiển thị chi tiết app đang chọn (E1).
+
+        Khi chưa chọn app -> hiện thông báo hướng dẫn thay vì loạt dấu '—' thô.
+        """
         dock = QDockWidget("Chi tiết ứng dụng", self)
         dock.setObjectName("detailDock")
         dock.setAllowedAreas(Qt.DockWidgetArea.RightDockWidgetArea
                              | Qt.DockWidgetArea.LeftDockWidgetArea)
 
-        container = QWidget()
-        form = QFormLayout(container)
-        form.setContentsMargins(10, 10, 10, 10)
-        form.setSpacing(6)
+        self.detail_stack = QStackedWidget()
+
+        # --- Trang 1: chưa chọn ứng dụng ---
+        empty_page = QWidget()
+        empty_layout = QVBoxLayout(empty_page)
+        empty_layout.setContentsMargins(18, 18, 18, 18)
+        empty_layout.setSpacing(12)
+        empty_layout.addStretch(1)
+
+        icon_label = QLabel()
+        icon_label.setPixmap(
+            self._icon(QStyle.StandardPixmap.SP_FileDialogInfoView).pixmap(48, 48))
+        icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        empty_layout.addWidget(icon_label)
+
+        hint = QLabel("Chọn một ứng dụng từ danh sách\nđể xem thông tin chi tiết")
+        hint.setObjectName("hint")
+        hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        hint.setWordWrap(True)
+        empty_layout.addWidget(hint)
+        empty_layout.addStretch(2)
+        self.detail_stack.addWidget(empty_page)
+
+        # --- Trang 2: chi tiết ứng dụng ---
+        content = QWidget()
+        content_layout = QVBoxLayout(content)
+        content_layout.setContentsMargins(14, 14, 14, 14)
+        content_layout.setSpacing(10)
+
+        self._detail_name = QLabel("")
+        self._detail_name.setObjectName("detailName")
+        self._detail_name.setWordWrap(True)
+        self._detail_name.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse)
+        content_layout.addWidget(self._detail_name)
+
+        self._detail_sub = QLabel("")
+        self._detail_sub.setObjectName("detailSub")
+        self._detail_sub.setWordWrap(True)
+        content_layout.addWidget(self._detail_sub)
+
+        separator = QFrame()
+        separator.setFrameShape(QFrame.Shape.HLine)
+        separator.setObjectName("toolbarSep")
+        separator.setFixedHeight(1)
+        content_layout.addWidget(separator)
+
+        form = QFormLayout()
+        form.setContentsMargins(0, 0, 0, 0)
+        form.setHorizontalSpacing(12)
+        form.setVerticalSpacing(9)
+        form.setLabelAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop)
         form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
 
         #: key -> QLabel giá trị, dùng lại trong `_update_detail`.
         self._detail_values = {}
         for key, label in (
-            ("name", "Tên"),
             ("version", "Phiên bản"),
             ("publisher", "Nhà phát hành"),
             ("size", "Dung lượng"),
@@ -838,52 +1004,63 @@ class MainWindow(QMainWindow):
             ("product", "Product code (MSI)"),
             ("registry", "Registry key"),
         ):
-            value = QLabel("—")
+            caption = QLabel(label)
+            caption.setObjectName("detailLabel")
+            value = QLabel(PLACEHOLDER)
             value.setWordWrap(True)
             value.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
             value.setStyleSheet("color:#c8cbd0;")
             self._detail_values[key] = value
-            form.addRow(f"{label}:", value)
+            form.addRow(caption, value)
 
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-        scroll.setWidget(container)
-        dock.setWidget(scroll)
+        content_layout.addLayout(form)
+        content_layout.addStretch(1)
+        self.detail_stack.addWidget(content)
+
+        dock.setWidget(self.detail_stack)
         dock.setMinimumWidth(300)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock)
         self.detail_dock = dock
         self._update_detail()
 
     def _update_detail(self, *_args):
-        """Cập nhật panel chi tiết theo app đang chọn (rỗng nếu không chọn)."""
-        if not hasattr(self, "_detail_values"):
+        """Cập nhật panel chi tiết theo app đang chọn (trang hướng dẫn nếu rỗng)."""
+        if not hasattr(self, "detail_stack"):
             return
-        apps = self._selected_apps()
+        apps = self._selected_apps() if hasattr(self, "table_view") else []
         app = apps[0] if apps else None
-        values = self._detail_values
         if app is None:
-            for lbl in values.values():
-                lbl.setText("—")
+            self.detail_stack.setCurrentIndex(0)
             return
-        values["name"].setText(app.name or "—")
-        values["version"].setText(app.version or "—")
-        values["publisher"].setText(app.publisher or "—")
-        values["size"].setText(app.size_text or "—")
-        values["date"].setText(app.date_text or "—")
-        values["source"].setText(SOURCE_LABELS.get(app.source, app.source or "—"))
-        values["location"].setText(app.install_location or "—")
-        values["uninstall"].setText(app.uninstall_string or "—")
-        values["quiet"].setText(app.quiet_uninstall_string or "—")
-        values["product"].setText(app.product_code or "—")
-        values["registry"].setText(app.registry_key or "—")
+        self.detail_stack.setCurrentIndex(1)
+        self._detail_name.setText(app.name or PLACEHOLDER)
+        subtitle = " · ".join(
+            part for part in (
+                app.version or "",
+                SOURCE_LABELS.get(app.source, app.source or ""),
+            ) if part
+        )
+        self._detail_sub.setText(subtitle)
+        values = self._detail_values
+        values["version"].setText(app.version or PLACEHOLDER)
+        values["publisher"].setText(app.publisher or PLACEHOLDER)
+        values["size"].setText(app.size_text or PLACEHOLDER)
+        values["date"].setText(app.date_text or PLACEHOLDER)
+        values["source"].setText(SOURCE_LABELS.get(app.source, app.source or PLACEHOLDER))
+        values["location"].setText(app.install_location or PLACEHOLDER)
+        values["uninstall"].setText(app.uninstall_string or PLACEHOLDER)
+        values["quiet"].setText(app.quiet_uninstall_string or PLACEHOLDER)
+        values["product"].setText(app.product_code or PLACEHOLDER)
+        values["registry"].setText(app.registry_key or PLACEHOLDER)
 
     # ---- Tiện ích chung ----
 
-    def _button(self, text, tip, slot, primary=False, danger=False):
+    def _button(self, text, tip, slot, primary=False, danger=False, icon=None):
         btn = QPushButton(text)
         btn.setToolTip(tip)
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        if icon is not None:
+            btn.setIcon(self._icon(icon))
         if primary:
             btn.setObjectName("primary")
         elif danger:
@@ -891,6 +1068,12 @@ class MainWindow(QMainWindow):
         if slot is not None:
             btn.clicked.connect(slot)
         return btn
+
+    @staticmethod
+    def _icon(standard_pixmap):
+        """Icon chuẩn của QStyle (giao diện sinh động, không cần file asset)."""
+        style = QApplication.style()
+        return style.standardIcon(standard_pixmap) if style is not None else None
 
     def _apply_styles(self):
         self.setStyleSheet(STYLESHEET)
@@ -928,16 +1111,12 @@ class MainWindow(QMainWindow):
         has_sel = bool(self.table_view.selectionModel()
                        and self.table_view.selectionModel().hasSelection())
 
+        # Nhóm 1: thao tác chính trên thanh công cụ.
         self.btn_refresh.setEnabled(not busy)
         for b in (self.btn_uninstall, self.btn_quiet, self.btn_batch,
-                  self.btn_leftover, self.btn_open_folder):
+                  self.btn_leftover):
             b.setEnabled((not busy) and has_sel)
-        self.btn_backups.setEnabled(not busy)
-        self.btn_restore_backup.setEnabled(not busy)
-        self.btn_clear_backups.setEnabled(not busy)
-        self.btn_restore_point.setEnabled(not busy)
-        if hasattr(self, "btn_admin"):
-            self.btn_admin.setEnabled(not busy)
+        self.btn_system.setEnabled(not busy)
 
         self.action_refresh.setEnabled(not busy)
         for a in (self.action_uninstall, self.action_quiet, self.action_batch,
